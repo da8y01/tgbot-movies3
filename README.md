@@ -17,6 +17,7 @@
 * `git remote add origin git@github.com:<THE_USER>/<THE_REPO>.git`
 * `heroku git:remote -a <THE_APP>`
 * `git remote -v`
-* `git pull origin master`
+* `git add .`
+* `git commit -m "First commit."`
 * `git push origin master`
 * `git push heroku master`
