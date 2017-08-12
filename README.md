@@ -21,3 +21,5 @@
 * `git commit -m "First commit."`
 * `git push origin master`
 * `git push heroku master`
+* `heroku config:set TGBOTTOKEN=<THE:TOKEN>`
+* `heroku config`

@@ -5,21 +5,23 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
+var botgram = require("botgram");
+var bot = botgram(process.env.TGBOTTOKEN);
+
+var MongoClient = require('mongodb').MongoClient
+  , assert = require('assert');
+
+var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
+let currentStep = '';
+let currentOpData = {};
+let inGetUser = inGetAccount = inGetPass = inGetAmount = false;
+
 var index = require('./routes/index');
 
 var app = express();
 
 
 function runBot() {
-  var botgram = require("botgram");
-  var bot = botgram(process.env.TGBOTTOKEN);
-
-  var MongoClient = require('mongodb').MongoClient
-    , assert = require('assert');
-
-  var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
-  let inWithdraw = false;
-
   // A (hopefully) unique string so we can know if the callback queries are for us
   var TYPE = "zp.0a";
 
@@ -108,23 +110,34 @@ function runBot() {
     var [ user, pass, amount ] = msg.args(3)
     if (!user.match(/^\w\S*$/) || !pass.match(/^\S{4,8}$/) || !amount.match(/^\d+$/)) return reply.text("Invalid operands.")
 
-    MongoClient.connect(mongoUrl, function(err, db) {
-      assert.equal(null, err);
-      console.log("Connected correctly to server");
-      var collection = db.collection('movies1');
-      collection.updateOne({user:user, pass:pass}, {$inc: {amount: -amount}}, function(err, r) {
-        assert.equal(null, err)
-        assert.equal(1, r.matchedCount)
-        assert.equal(1, r.modifiedCount)
-        console.log("Retiro hecho, monto actualizado.")
-        reply.text("Retiro hecho, monto actualizado.")
-      })
-    });
+    doWithdraw()
   });
 
   bot.text((msg, reply, next) => {
+    if (msg.text && currentStep==='pass') {
+      currentStep = 'amount'
+      currentOpData.pass = msg.text
+    }
+    if (msg.text === 'registrar') {
+      inGetUser = true;
+      reply.text('Por favor ingrese el usuario:')
+    }
     if (msg.text === 'retirar') {
+      currentStep = 'account'
+      reply.text('Por favor ingrese el número de cuenta:')
+    }
+    if (currentStep==='account' && parseInt(msg.text)) {
+      currentOpData.account = msg.text
+      currentStep = 'pass'
+      reply.text('Por favor ingrese la clave:')
+    }
+    if (currentStep==='amount') {
+      currentOpData.pass = msg.text
       reply.text('Por favor ingrese el monto a retirar:')
+    }
+    if (currentStep === 'amount' && parseInt(msg.text)) {
+      currentOpData.amount = msg.text
+      doWithdraw(reply, currentOpData)
     }
   });
 
@@ -141,6 +154,26 @@ function responseOptions(moviesReplyButtons) {
 
 function getInclusiveRandomInteger(start, end) {
   return Math.floor(Math.random() * (Math.floor(end) - Math.ceil(start) + 1)) + Math.ceil(start);
+}
+
+function doWithdraw(reply, OpData) {
+  MongoClient.connect(mongoUrl, function(err, db) {
+    assert.equal(null, err);
+    console.log("Connected correctly to server");
+    var collection = db.collection('movies1');
+    /*collection.updateOne({user:user, pass:pass}, {$inc: {amount: -amount}}, function(err, r) {
+      assert.equal(null, err)
+      assert.equal(1, r.matchedCount)
+      assert.equal(1, r.modifiedCount)
+      console.log("Retiro hecho, monto actualizado.")
+      reply.text("Retiro hecho, monto actualizado.")
+    })*/
+  });
+}
+
+function getPass(reply) {
+  inGetPass = true
+  reply.text('Por favor ingrese la clave:')
 }
 
 runBot();
