@@ -18,12 +18,13 @@ function runBot() {
     , assert = require('assert');
 
   var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
+  let inWithdraw = false;
 
   // A (hopefully) unique string so we can know if the callback queries are for us
   var TYPE = "zp.0a";
 
   var localeTexts = {};
-  localeTexts.start = "Hola, soy el robot *@FamousObjectsFromClassicMovies_bot* , con el comnado /movieThings proveo un juego en el que se adivina el nombre de una película según la imagen que aparezca.\n\nEste robot también es una *calculadora*, enviando comandos del tipo: \n/sum num1 num2 \n/substract num1 num2 \n/product num1 num2 \n/divide num1 num2\n\nEste robot también es un *notificador*, se agenda una notificación con: /alert <SEGUNDOS> <TEXTO>\n\nEste robot también almacena datos en una base de datos: /storage <TEXT>";
+  localeTexts.start = "Hola, soy el robot *@KodeBank_bot* , y simulo operaciones básicas de un banco:\n/registerAccount <USER> <PASS>\n/withdraw <USER> <PASS> <AMOUNT>\n\nEste robot también es una *calculadora*, enviando comandos del tipo:\n/sum num1 num2\n/substract num1 num2\n/product num1 num2\n/divide num1 num2\n\nEste robot también es un *notificador*, se agenda una notificación con: /alert <SEGUNDOS> <TEXTO>\n\nEste robot también almacena datos en una base de datos: /storage <TEXT>";
 
   bot.command("start", "help", function (msg, reply, next) {
     reply.markdown(localeTexts.start);
@@ -64,37 +65,6 @@ function runBot() {
     reply.text(parseInt(op1) / parseInt(op2))
   })
 
-  bot.command("movieThings", function (msg, reply, next) {
-    function encodeData(action) {
-      return JSON.stringify({ type: TYPE, action: action, chatId: msg.chat.id });
-    }
-
-    var moviesReplyButtons = [
-      { text: "Movie 01", callback_data: encodeData("upload_photo") },
-      { text: "An american lobster in Paris", callback_data: encodeData("upload_photo") },
-      { text: "Borat", callback_data: encodeData("upload_photo") },
-      { text: "Inception - El orígen", callback_data: encodeData("upload_photo") },
-      { text: "Shrek", callback_data: encodeData("upload_photo") },
-      { text: "Movie 06", callback_data: encodeData("upload_photo") },
-      { text: "Movie 07", callback_data: encodeData("upload_photo") },
-      { text: "So i married a cropduster", callback_data: encodeData("upload_photo") },
-      { text: "The silence of the lambs - El silencio de los inocentes", callback_data: encodeData("upload_photo") },
-      { text: "Movie 10", callback_data: encodeData("upload_photo") },
-      { text: "Movie 11", callback_data: encodeData("upload_photo") },
-      { text: "Movie 12", callback_data: encodeData("upload_photo") },
-      { text: "Blood Diamond", callback_data: encodeData("upload_photo") },
-      { text: "Movie 14", callback_data: encodeData("upload_photo") },
-      { text: "American Psycho", callback_data: encodeData("upload_photo") },
-      { text: "Movie 16", callback_data: encodeData("upload_photo") },
-      { text: "El profesional - The Professional - El perfecto asesino", callback_data: encodeData("upload_photo") },
-      { text: "Movie 18", callback_data: encodeData("upload_photo") }
-    ]
-
-    reply.inlineKeyboard(responseOptions(moviesReplyButtons));
-
-    reply.markdown("¿A qué película corresponde ese objeto?");
-  });
-
   bot.command("storage", (msg, reply, next) => {
     var [ text ] = msg.args(1)
     if (!text || text === '') return reply.text("Invalid operands.")
@@ -115,37 +85,54 @@ function runBot() {
     });
   });
 
-  bot.command((msg, reply) => reply.text("Invalid command."))
+  bot.command("registerAccount", (msg, reply, next) => {
+    var [ user, pass, amount ] = msg.args(3)
+    if (!user.match(/^\w\S*$/) || !pass.match(/^\S{4,8}$/) || !amount.match(/^\d+$/)) return reply.text("Invalid register data.")
 
-  bot.callback(function (query, next) {
-    // Try to parse the query, otherwise pass it down
-    try {
-      var data = JSON.parse(query.data);
-    } catch (e) {
-      return next();
-    }
-
-    // Verify this query is, indeed, for us
-    if (data.type !== TYPE) return next();
-
-    // Try to send the chat action where the payload says
-    // DON'T DO THIS AT HOME! A bad client could manipulate the
-    // value of any field and make the bot send actions to whoever he wants!
-    bot.reply(data.chatId).action(data.action).then(function (err) {
-      if (err)
-        return query.answer({ text: "Couldn't send the chat action, can the bot talk here?" });
-      query.answer();
+    MongoClient.connect(mongoUrl, function(err, db) {
+      assert.equal(null, err);
+      console.log("Connected correctly to server");
+      var collection = db.collection('movies1');
+      collection.insert(
+        {user: user, pass: pass, amount: amount},
+        (err, result) => {
+          assert.equal(err, null);
+          console.log("Nueva cuenta registrada.");
+          reply.text("Nueva cuenta registrada.")
+        }
+      );
     });
-
-    // Encoding request data in callback_data is practical but
-    // shouln't be done in production because callback_data can
-    // only be up to 64 bytes long, and a client could send
-    // specially crafted data, such as:
-    //
-    //     { "type": TYPE }
-    //
-    // which would make this code crash at the call to bot.reply(...)
   });
+
+  bot.command("withdraw", (msg, reply, next) => {
+    var [ user, pass, amount ] = msg.args(3)
+    if (!user.match(/^\w\S*$/) || !pass.match(/^\S{4,8}$/) || !amount.match(/^\d+$/)) return reply.text("Invalid operands.")
+
+    MongoClient.connect(mongoUrl, function(err, db) {
+      assert.equal(null, err);
+      console.log("Connected correctly to server");
+      var collection = db.collection('movies1');
+      collection.updateOne({user:user, pass:pass}, {$inc: {amount: -amount}}, function(err, r) {
+        assert.equal(null, err)
+        assert.equal(1, r.matchedCount)
+        assert.equal(1, r.modifiedCount)
+        console.log("Retiro hecho, monto actualizado.")
+        reply.text("Retiro hecho, monto actualizado.")
+      })
+    });
+  });
+
+  bot.text((msg, reply, next) => {
+    if (msg.text === 'retirar') {
+      reply.text('Por favor ingrese el monto a retirar:')
+    }
+  });
+
+  bot.command((msg, reply) => reply.text("Invalid command."))
+}
+
+function simpleCallback(result) {
+  console.log(result);
 }
 
 function responseOptions(moviesReplyButtons) {
