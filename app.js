@@ -116,14 +116,14 @@ function runBot() {
   });
 
   bot.text((msg, reply, next) => {
-    if (currentStep==='pass' && msg.text) {
-      currentStep = 'amount'
-      currentOpData.pass = msg.text
-      reply.text('Por favor ingrese el monto a retirar:')
+    if (currentStep==='register_amount' && parseInt(msg.text)) {
+      currentOpData.amount = parseInt(msg.text)
+      doRegister(reply, currentOpData)
     }
     if (currentStep==='register_pass' && msg.text) {
       currentOpData.pass = msg.text
-      doRegister(reply, currentOpData)
+      currentStep = 'register_amount'
+      reply.text('Por favor ingrese el monto inicial:')
     }
     if (currentStep==='user' && !parseInt(msg.text)) {
       currentOpData.user = msg.text
@@ -134,18 +134,23 @@ function runBot() {
       currentStep = 'user'
       reply.text('Por favor ingrese el usuario:')
     }
-    if (msg.text === 'retirar') {
-      currentStep = 'account'
-      reply.text('Por favor ingrese el número de cuenta:')
+    if (currentStep === 'amount' && parseInt(msg.text)) {
+      currentOpData.amount = parseInt(msg.text)
+      doWithdraw(reply, currentOpData)
+    }
+    if (currentStep==='pass' && msg.text) {
+      currentStep = 'amount'
+      currentOpData.pass = msg.text
+      reply.text('Por favor ingrese el monto a retirar:')
     }
     if (currentStep==='account' && parseInt(msg.text)) {
       currentOpData.account = msg.text
       currentStep = 'pass'
       reply.text('Por favor ingrese la clave:')
     }
-    if (currentStep === 'amount' && parseInt(msg.text)) {
-      currentOpData.amount = msg.text
-      doWithdraw(reply, currentOpData)
+    if (msg.text === 'retirar') {
+      currentStep = 'account'
+      reply.text('Por favor ingrese el número de cuenta:')
     }
   });
 
@@ -174,7 +179,7 @@ function doRegister(reply, opData) {
     collection.insertOne(opData, function(err, r) {
       assert.equal(null, err)
       currentStep = ''
-      console.log("Registro hecho.")
+      console.log("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+opData.user+"_: *"+opData.account+"*")
       reply.markdown("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+opData.user+"_: *"+opData.account+"*")
     })
   });
@@ -185,13 +190,13 @@ function doWithdraw(reply, opData) {
     assert.equal(null, err)
     console.log("Connected correctly to server")
     var collection = db.collection('movies1')
-    /*collection.updateOne({user:user, pass:pass}, {$inc: {amount: -amount}}, function(err, r) {
+    collection.updateOne({account:opData.account, pass:opData.pass}, {$inc: {amount: -opData.amount}}, function(err, r) {
       assert.equal(null, err)
       assert.equal(1, r.matchedCount)
       assert.equal(1, r.modifiedCount)
       console.log("Retiro hecho, monto actualizado.")
       reply.text("Retiro hecho, monto actualizado.")
-    })*/
+    })
   });
 }
 
