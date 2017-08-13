@@ -15,7 +15,7 @@ var randtoken = require('rand-token');
 
 var superagent = require('superagent');
 
-var mongoUrl = 'mongodb://216.189.151.196:27017/kodefest3';
+var mongoUrl = 'mongodb://'+process.env.MONGOIP+':27017/kodefest3';
 let currentStep = '';
 let currentOpData = {};
 // A (hopefully) unique string so we can know if the callback queries are for us
@@ -108,7 +108,7 @@ function runBot() {
 
   bot.command("bankOperations", (msg, reply, next) => {
     superagent
-      .post('https://api.telegram.org/bot348200493:AAHLX6AslUteR8pQe06YrjQY0XB1K7OCHQ0/sendMessage')
+      .post('https://api.telegram.org/bot'+process.env.TGBOTTOKEN+'/sendMessage')
       .send({
         chat_id: msg.chat.id,
         text: '¿Qué operación desea realizar?',
