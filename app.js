@@ -16,7 +16,6 @@ var randtoken = require('rand-token');
 var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
 let currentStep = '';
 let currentOpData = {};
-let inGetUser = inGetAccount = inGetPass = inGetAmount = false;
 
 var index = require('./routes/index');
 
@@ -24,69 +23,11 @@ var app = express();
 
 
 function runBot() {
-  // A (hopefully) unique string so we can know if the callback queries are for us
-  var TYPE = "zp.0a";
-
   var localeTexts = {};
-  localeTexts.start = "Hola, soy el robot *@KodeBank_bot* , y simulo operaciones básicas de un banco:\n/registerAccount <USER> <PASS>\n/withdraw <USER> <PASS> <AMOUNT>\n\nEste robot también es una *calculadora*, enviando comandos del tipo:\n/sum num1 num2\n/substract num1 num2\n/product num1 num2\n/divide num1 num2\n\nEste robot también es un *notificador*, se agenda una notificación con: /alert <SEGUNDOS> <TEXTO>\n\nEste robot también almacena datos en una base de datos: /storage <TEXT>";
+  localeTexts.start = "Hola, soy el robot *@KodeBank_bot* , y simulo operaciones bancarias básicas:\n\n/bankOps\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
 
   bot.command("start", "help", function (msg, reply, next) {
     reply.markdown(localeTexts.start);
-  });
-
-  bot.command("alert", (msg, reply) => {
-    var [ seconds, text ] = msg.args(2)
-    if (!seconds.match(/^\d+$/) || !text) return reply.text("Invalid arguments.")
-
-    setTimeout(() => reply.text(text), Number(seconds) * 1000)
-  })
-
-  bot.command("sum", (msg, reply) => {
-    var [ op1, op2 ] = msg.args(2)
-    if (!op1.match(/^\d+$/) || !op2.match(/^\d+$/)) return reply.text("Invalid operands.")
-
-    reply.text(parseInt(op1) + parseInt(op2))
-  })
-
-  bot.command("substract", (msg, reply) => {
-    var [ op1, op2 ] = msg.args(2)
-    if (!op1.match(/^\d+$/) || !op2.match(/^\d+$/)) return reply.text("Invalid operands.")
-
-    reply.text(parseInt(op1) - parseInt(op2))
-  })
-
-  bot.command("product", (msg, reply) => {
-    var [ op1, op2 ] = msg.args(2)
-    if (!op1.match(/^\d+$/) || !op2.match(/^\d+$/)) return reply.text("Invalid operands.")
-
-    reply.text(parseInt(op1) * parseInt(op2))
-  })
-
-  bot.command("divide", (msg, reply) => {
-    var [ op1, op2 ] = msg.args(2)
-    if (!op1.match(/^\d+$/) || !op2.match(/^\d+$/)) return reply.text("Invalid operands.")
-
-    reply.text(parseInt(op1) / parseInt(op2))
-  })
-
-  bot.command("storage", (msg, reply, next) => {
-    var [ text ] = msg.args(1)
-    if (!text || text === '') return reply.text("Invalid operands.")
-
-    // Use connect method to connect to the Server
-    MongoClient.connect(mongoUrl, function(err, db) {
-      assert.equal(null, err);
-      console.log("Connected correctly to server");
-      var collection = db.collection('movies1');
-      collection.insert(
-        {text: text},
-        (err, result) => {
-          assert.equal(err, null);
-          console.log("Inserted document into the collection");
-          reply.text("Inserted document into the collection")
-        }
-      );
-    });
   });
 
   bot.command("registerAccount", (msg, reply, next) => {
@@ -113,6 +54,31 @@ function runBot() {
     if (!user.match(/^\w\S*$/) || !pass.match(/^\S{4,8}$/) || !amount.match(/^\d+$/)) return reply.text("Invalid operands.")
 
     doWithdraw()
+  });
+
+  bot.command("bankOps", (msg, reply, next) => {
+    function encodeData(action) {
+      return JSON.stringify({ type: TYPE, action: action, chatId: msg.chat.id });
+    }
+
+    // A (hopefully) unique string so we can know if the callback queries are for us
+    var TYPE = "zp.0a"
+    , bankOpsButtons = [
+      [
+        { text: "\u25B6 Registrar", callback_data: encodeData("registrar") },
+        { text: "\u23FA Consultar", callback_data: encodeData("consultar") }
+      ],
+      [
+        { text: "\u2198 Retirar", callback_data: encodeData("retirar") }
+      ],
+      [
+        { text: "\u2197 Consignar", callback_data: encodeData("consignar") },
+        { text: "\u2194 Transferir", callback_data: encodeData("transferir") }
+      ]
+    ]
+
+    reply.inlineKeyboard(bankOpsButtons)
+    reply.text('Qué operación desea realizar?')
   });
 
   bot.text((msg, reply, next) => {
@@ -157,14 +123,6 @@ function runBot() {
   bot.command((msg, reply) => reply.text("Invalid command."))
 }
 
-function simpleCallback(result) {
-  console.log(result);
-}
-
-function responseOptions(moviesReplyButtons) {
-  return [[moviesReplyButtons[0], moviesReplyButtons[1]], [moviesReplyButtons[2], moviesReplyButtons[3]]]
-}
-
 function getInclusiveRandomInteger(start, end) {
   return Math.floor(Math.random() * (Math.floor(end) - Math.ceil(start) + 1)) + Math.ceil(start);
 }
@@ -198,11 +156,6 @@ function doWithdraw(reply, opData) {
       reply.text("Retiro hecho, monto actualizado.")
     })
   });
-}
-
-function getPass(reply) {
-  inGetPass = true
-  reply.text('Por favor ingrese la clave:')
 }
 
 runBot();
