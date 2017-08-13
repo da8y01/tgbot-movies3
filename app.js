@@ -13,9 +13,13 @@ var MongoClient = require('mongodb').MongoClient
 
 var randtoken = require('rand-token');
 
+var superagent = require('superagent');
+
 var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
 let currentStep = '';
 let currentOpData = {};
+// A (hopefully) unique string so we can know if the callback queries are for us
+var TYPE = "zp.0a"
 
 var index = require('./routes/index');
 
@@ -24,7 +28,7 @@ var app = express();
 
 function runBot() {
   var localeTexts = {};
-  localeTexts.start = "Hola, soy el robot *@KodeBank_bot* , y simulo operaciones bancarias básicas:\n\n/bankOps\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
+  localeTexts.start = "Hola, soy el robot *@KodeFest3_bot* , y simulo operaciones bancarias básicas:\n\n/bankOperations\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
 
   bot.command("start", "help", function (msg, reply, next) {
     reply.markdown(localeTexts.start);
@@ -58,12 +62,10 @@ function runBot() {
 
   bot.command("bankOps", (msg, reply, next) => {
     function encodeData(action) {
-      return JSON.stringify({ type: TYPE, action: action, chatId: msg.chat.id });
+      return JSON.stringify({ action: action, chatId: msg.chat.id });
     }
 
-    // A (hopefully) unique string so we can know if the callback queries are for us
-    var TYPE = "zp.0a"
-    , bankOpsButtons = [
+    var bankOpsButtons = [
       [
         { text: "\u25B6 Registrar", callback_data: encodeData("registrar") },
         { text: "\u23FA Consultar", callback_data: encodeData("consultar") }
@@ -78,7 +80,27 @@ function runBot() {
     ]
 
     reply.inlineKeyboard(bankOpsButtons)
-    reply.text('Qué operación desea realizar?')
+    reply.text('¿Qué operación desea realizar?')
+  });
+
+  bot.command("bankOperations", (msg, reply, next) => {
+    superagent
+      .post('https://api.telegram.org/bot348200493:AAHLX6AslUteR8pQe06YrjQY0XB1K7OCHQ0/sendMessage')
+      .send({
+        chat_id: msg.chat.id,
+        text: '¿Qué operación desea realizar?',
+        reply_markup: {
+          keyboard: [
+            ["Registrar", "Consultar"],
+            ["Retirar"],
+            ["Consignar", "Transferir"]
+          ],
+          one_time_keyboard: true
+        }
+      })
+      .end(function(err, res){
+        if (err) reply.text('Error entregando mensaje al usuario.')
+      });
   });
 
   bot.text((msg, reply, next) => {
@@ -96,7 +118,7 @@ function runBot() {
       currentStep = 'register_pass'
       reply.text('Por favor ingrese la clave:')
     }
-    if (msg.text === 'registrar') {
+    if (msg.text==='registrar' || msg.text==='Registrar') {
       currentStep = 'user'
       reply.text('Por favor ingrese el usuario:')
     }
@@ -114,13 +136,44 @@ function runBot() {
       currentStep = 'pass'
       reply.text('Por favor ingrese la clave:')
     }
-    if (msg.text === 'retirar') {
+    if (msg.text==='retirar' || msg.text==='Retirar') {
       currentStep = 'account'
       reply.text('Por favor ingrese el número de cuenta:')
     }
   });
 
   bot.command((msg, reply) => reply.text("Invalid command."))
+
+  bot.callback(function (query, next) {
+    console.log(query);
+    // Try to parse the query, otherwise pass it down
+    try {
+      var data = JSON.parse(query.data);
+    } catch (e) {
+      return next();
+    }
+
+    // Verify this query is, indeed, for us
+    //if (data.type !== TYPE) return next();
+
+    // Try to send the chat action where the payload says
+    // DON'T DO THIS AT HOME! A bad client could manipulate the
+    // value of any field and make the bot send actions to whoever he wants!
+    bot.reply(data.chatId).text(data.action).then(function (err) {
+      if (err)
+        return query.answer({ text: "Couldn't send the chat action, can the bot talk here?" });
+      query.answer();
+    });
+
+    // Encoding request data in callback_data is practical but
+    // shouln't be done in production because callback_data can
+    // only be up to 64 bytes long, and a client could send
+    // specially crafted data, such as:
+    //
+    //     { "type": TYPE }
+    //
+    // which would make this code crash at the call to bot.reply(...)
+  });
 }
 
 function getInclusiveRandomInteger(start, end) {
@@ -130,30 +183,31 @@ function getInclusiveRandomInteger(start, end) {
 function doRegister(reply, opData) {
   opData.account = randtoken.generate(6, '0123456789')
   MongoClient.connect(mongoUrl, function(err, db) {
-    assert.equal(null, err)
-    console.log("Connected correctly to server")
+    if (err) {
+      reply.markdown("Error conectando con la base de datos.")
+      return
+    }
     var collection = db.collection('movies1')
     delete opData._id
     collection.insertOne(opData, function(err, r) {
-      assert.equal(null, err)
       currentStep = ''
-      console.log("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+opData.user+"_: *"+opData.account+"*")
-      reply.markdown("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+opData.user+"_: *"+opData.account+"*")
+      if (err) reply.markdown("Error almacenando registro.")
+      else reply.markdown("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+opData.user+"_: *"+opData.account+"*")
     })
   });
 }
 
 function doWithdraw(reply, opData) {
   MongoClient.connect(mongoUrl, function(err, db) {
-    assert.equal(null, err)
-    console.log("Connected correctly to server")
+    if (err) {
+      reply.markdown("Error conectando con la base de datos.")
+      return
+    }
     var collection = db.collection('movies1')
     collection.updateOne({account:opData.account, pass:opData.pass}, {$inc: {amount: -opData.amount}}, function(err, r) {
-      assert.equal(null, err)
-      assert.equal(1, r.matchedCount)
-      assert.equal(1, r.modifiedCount)
-      console.log("Retiro hecho, monto actualizado.")
-      reply.text("Retiro hecho, monto actualizado.")
+      currentStep = ''
+      if (err) reply.markdown("Error actualizando registro.")
+      else reply.markdown("Retiro hecho, monto actualizado.")
     })
   });
 }

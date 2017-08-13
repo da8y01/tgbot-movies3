@@ -24,3 +24,5 @@
 * `heroku config:set TGBOTTOKEN=<THE:TOKEN>`
 * `heroku config`
 * `npm i rand-token -S`
+* [http://unicode.org/emoji/charts/full-emoji-list.html](http://unicode.org/emoji/charts/full-emoji-list.html)
+* `npm i request -S`
