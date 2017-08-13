@@ -34,20 +34,22 @@ function runBot() {
     reply.markdown(localeTexts.start);
   });
 
-  bot.command("registerAccount", (msg, reply, next) => {
-    var [ user, pass, amount ] = msg.args(3)
-    if (!user.match(/^\w\S*$/) || !pass.match(/^\S{4,8}$/) || !amount.match(/^\d+$/)) return reply.text("Invalid register data.")
+  bot.command("register", (msg, reply, next) => {
+    var account = randtoken.generate(6, '0123456789')
+    , [ user, pass, amount ] = msg.args(3)
+    if (!user || !user.match(/^\w\S*$/) || !pass || !pass.match(/^\S{4,8}$/) || !amount || !amount.match(/^\d+$/)) return reply.text("Datos de registro inválidos.")
 
     MongoClient.connect(mongoUrl, function(err, db) {
-      assert.equal(null, err);
-      console.log("Connected correctly to server");
+      if (err) {
+        reply.markdown("Error conectando con la base de datos.")
+        return
+      }
       var collection = db.collection('movies1');
       collection.insert(
-        {user: user, pass: pass, amount: amount},
+        {user: user, pass: pass, amount: parseInt(amount), account: account},
         (err, result) => {
-          assert.equal(err, null);
-          console.log("Nueva cuenta registrada.");
-          reply.text("Nueva cuenta registrada.")
+          if (err) reply.markdown("Error almacenando registro.")
+          else reply.markdown("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+user+"_: *"+account+"*")
         }
       );
     });
