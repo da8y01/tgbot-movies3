@@ -28,7 +28,7 @@ var app = express();
 
 function runBot() {
   var localeTexts = {};
-  localeTexts.start = "Hola, soy el robot *@KodeFest3_bot* , y simulo operaciones bancarias básicas:\n\n/bankOperations\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
+  localeTexts.start = "Hola, soy el robot *@KodeFest3_bot* , y simulo operaciones bancarias básicas.\n\nRespondo a las palabras clave *registrar/Registrar*, *consultar/Consultar*, *retirar/Retirar*, *consignar/Consignar*, *transferir/Transferir*.\n\nTambién respondo a los siguientes comandos:\n/bankOperations\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
 
   bot.command("start", "help", function (msg, reply, next) {
     reply.markdown(localeTexts.start);
@@ -81,6 +81,20 @@ function runBot() {
     if (!account || !account.match(/^\w\S*$/) || !pass || !pass.match(/^\S{4,8}$/) || !amount || !amount.match(/^\d+$/)) return reply.text("Datos de retiro inválidos.")
 
     doWithdraw(reply, {account: account, pass: pass, amount: amount})
+  });
+
+  bot.command("consign", (msg, reply, next) => {
+    var [ account, amount ] = msg.args(2)
+    if (!account || !account.match(/^\w\S*$/) || !amount || !amount.match(/^\d+$/)) return reply.text("Datos de consignación inválidos.")
+
+    doConsign(reply, {account: account, amount: amount})
+  });
+
+  bot.command("transfer", (msg, reply, next) => {
+    var [ source, pass, target, amount ] = msg.args(4)
+    if (!source || !source.match(/^\d{6}$/) || !pass || !pass.match(/^\S{4,8}$/) || !target || !target.match(/^\d{6}$/) || !amount || !amount.match(/^\d+$/)) return reply.text("Datos de transferencia inválidos.")
+
+    doTransfer(reply, {source: source, pass: pass, target: target, amount: amount})
   });
 
   bot.command("bankOps", (msg, reply, next) => {
@@ -233,6 +247,60 @@ function doWithdraw(reply, opData) {
       if (err) reply.markdown("Error actualizando registro.")
       else reply.markdown("Retiro hecho, monto actualizado.")
     })
+  });
+}
+
+function doConsign(reply, opData) {
+  opData.amount = parseInt(opData.amount)
+  MongoClient.connect(mongoUrl, function(err, db) {
+    if (err) {
+      reply.markdown("Error conectando con la base de datos.")
+      return
+    }
+    var collection = db.collection('accounts')
+    collection.updateOne({account:opData.account}, {$inc: {amount: opData.amount}}, function(err, r) {
+      currentStep = ''
+      if (err) reply.markdown("Error actualizando registro.")
+      else reply.markdown("Consignación hecha, monto actualizado.")
+    })
+  });
+}
+
+function doTransfer(reply, opData) {
+  opData.amount = parseInt(opData.amount)
+  MongoClient.connect(mongoUrl, function(err, db) {
+    if (err) {
+      reply.markdown("Error conectando con la base de datos.")
+      return
+    }
+    var collection = db.collection('accounts')
+    collection.find({account: opData.target}).toArray(function(err, docs) {
+      if (err) {
+        reply.markdown("Error consultando documentos.")
+        return
+      }
+      if (docs.length === 1) {
+        collection.find({account: opData.source, pass: opData.pass}).toArray((err, docs) => {
+          if (err) {
+            reply.markdown("Error consultando documentos.")
+            return
+          }
+          if (docs.length === 1) {
+            collection.updateOne({account: opData.source}, {$inc: {amount: -opData.amount}}, (err, r) => {
+              if (err) reply.markdown('Error actualizando cuenta orígen.')
+              else {
+                collection.updateOne({account: opData.target}, {$inc: {amount: opData.amount}}, (err, r) => {
+                  if (err) reply.markdown('Error actualizando cuenta destino.')
+                  else reply.markdown('Transferencia realizada.')
+                });
+              }
+            });
+          }
+          else reply.markdown('Error consultando cuenta orígen.')
+        });
+      }
+      else reply.markdown('Error consultando cuenta destino.')
+    });
   });
 }
 
