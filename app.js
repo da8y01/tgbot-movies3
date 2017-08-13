@@ -28,7 +28,7 @@ var app = express();
 
 function runBot() {
   var localeTexts = {};
-  localeTexts.start = "Hola, soy el robot *@KodeFest3_bot* , y simulo operaciones bancarias básicas.\n\nRespondo a las palabras clave *registrar/Registrar*, *consultar/Consultar*, *retirar/Retirar*, *consignar/Consignar*, *transferir/Transferir*.\n\nTambién respondo a los siguientes comandos:\n/bankOperations\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
+  localeTexts.start = "Hola, soy el robot *@KodeFest3_bot* , y simulo operaciones bancarias básicas.\n\nRespondo a las palabras clave: *registrar/Registrar*, *consultar/Consultar*, *retirar/Retirar*, *consignar/Consignar*, *transferir/Transferir*.\n\nTambién respondo a los siguientes comandos:\n/bankOperations\n/register <USER> <PASS> <AMOUNT>\n/query <ACCOUNT> <PASS>\n/withdraw <ACCOUNT> <PASS> <AMOUNT>\n/consign <ACCOUNT> <AMOUNT>\n/transfer <SOURCE> <PASS> <TARGET> <AMOUNT>";
 
   bot.command("start", "help", function (msg, reply, next) {
     reply.markdown(localeTexts.start);

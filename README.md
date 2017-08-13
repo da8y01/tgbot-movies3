@@ -1,10 +1,10 @@
-## FamousObjectsFromClassicMovies_bot
+## KodeFest3_bot
 
-* Verificar requisito NodeJS: `node -v`.
-* Verificar requisito NPM: `npm -v`.
+* Verificar requisito NodeJS: `node -v`
+* Verificar requisito NPM: `npm -v`
 * Instalar globalmente librería Express Generator vía NPM: `npm i -g express-generator`
-* Verificar Express Generator: `express --version`.
-* Scaffold del proyecto: `express <PROJECT_NAME>`.
+* Verificar Express Generator: `express --version`
+* Scaffold del proyecto: `express <PROJECT_NAME>`
 * Instalar librerías requeridas vía NPM:
 * `npm i ejs -S`
 * `npm i botgram -S`
