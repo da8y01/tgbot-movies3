@@ -15,7 +15,7 @@ var randtoken = require('rand-token');
 
 var superagent = require('superagent');
 
-var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
+var mongoUrl = 'mongodb://216.189.151.196:27017/kodefest3';
 let currentStep = '';
 let currentOpData = {};
 // A (hopefully) unique string so we can know if the callback queries are for us
@@ -44,7 +44,7 @@ function runBot() {
         reply.markdown("Error conectando con la base de datos.")
         return
       }
-      var collection = db.collection('movies1');
+      var collection = db.collection('accounts');
       collection.insert(
         {user: user, pass: pass, amount: parseInt(amount), account: account},
         (err, result) => {
@@ -55,11 +55,32 @@ function runBot() {
     });
   });
 
-  bot.command("withdraw", (msg, reply, next) => {
-    var [ user, pass, amount ] = msg.args(3)
-    if (!user.match(/^\w\S*$/) || !pass.match(/^\S{4,8}$/) || !amount.match(/^\d+$/)) return reply.text("Invalid operands.")
+  bot.command("query", (msg, reply, next) => {
+    var [ account, pass ] = msg.args(2)
+    if (!account || !account.match(/^\w\S*$/) || !pass || !pass.match(/^\S{4,8}$/)) return reply.text("Datos para consulta inválidos.")
 
-    doWithdraw()
+    MongoClient.connect(mongoUrl, function(err, db) {
+      if (err) {
+        reply.markdown("Error conectando con la base de datos.")
+        return
+      }
+      var collection = db.collection('accounts');
+      collection.find({account: account, pass: pass}).toArray(function(err, docs) {
+        if (err) {
+          reply.markdown("Error consultando documentos.")
+          return
+        }
+        if (docs.length === 1) reply.markdown('El monto actual de la cuenta _'+account+'_ es: *'+docs[0].amount+'*')
+        else reply.markdown('Error consultando datos.')
+      });
+    });
+  });
+
+  bot.command("withdraw", (msg, reply, next) => {
+    var [ account, pass, amount ] = msg.args(3)
+    if (!account || !account.match(/^\w\S*$/) || !pass || !pass.match(/^\S{4,8}$/) || !amount || !amount.match(/^\d+$/)) return reply.text("Datos de retiro inválidos.")
+
+    doWithdraw(reply, {account: account, pass: pass, amount: amount})
   });
 
   bot.command("bankOps", (msg, reply, next) => {
@@ -125,7 +146,7 @@ function runBot() {
       reply.text('Por favor ingrese el usuario:')
     }
     if (currentStep === 'amount' && parseInt(msg.text)) {
-      currentOpData.amount = parseInt(msg.text)
+      currentOpData.amount = msg.text
       doWithdraw(reply, currentOpData)
     }
     if (currentStep==='pass' && msg.text) {
@@ -189,7 +210,7 @@ function doRegister(reply, opData) {
       reply.markdown("Error conectando con la base de datos.")
       return
     }
-    var collection = db.collection('movies1')
+    var collection = db.collection('accounts')
     delete opData._id
     collection.insertOne(opData, function(err, r) {
       currentStep = ''
@@ -200,12 +221,13 @@ function doRegister(reply, opData) {
 }
 
 function doWithdraw(reply, opData) {
+  opData.amount = parseInt(opData.amount)
   MongoClient.connect(mongoUrl, function(err, db) {
     if (err) {
       reply.markdown("Error conectando con la base de datos.")
       return
     }
-    var collection = db.collection('movies1')
+    var collection = db.collection('accounts')
     collection.updateOne({account:opData.account, pass:opData.pass}, {$inc: {amount: -opData.amount}}, function(err, r) {
       currentStep = ''
       if (err) reply.markdown("Error actualizando registro.")

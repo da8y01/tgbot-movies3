@@ -9,6 +9,8 @@
 * `npm i ejs -S`
 * `npm i botgram -S`
 * `npm i mongodb -S`
+* `npm i rand-token -S`
+* `npm i superagent -S`
 * Crear archivo `.gitignore` con una entrada `node_modules/`.
 * Crear archivo `README.md` con documentación básica.
 * Inicializar y configurar el repositorio git y el sistema distribuido de control de versiones [GitHub](https://github.com/)
@@ -20,9 +22,7 @@
 * `git add .`
 * `git commit -m "First commit."`
 * `git push origin master`
-* `git push heroku master`
 * `heroku config:set TGBOTTOKEN=<THE:TOKEN>`
 * `heroku config`
-* `npm i rand-token -S`
+* `git push heroku master`
 * [http://unicode.org/emoji/charts/full-emoji-list.html](http://unicode.org/emoji/charts/full-emoji-list.html)
-* `npm i request -S`
