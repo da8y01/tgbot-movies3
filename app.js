@@ -11,6 +11,8 @@ var bot = botgram(process.env.TGBOTTOKEN);
 var MongoClient = require('mongodb').MongoClient
   , assert = require('assert');
 
+var randtoken = require('rand-token');
+
 var mongoUrl = 'mongodb://216.189.151.196:27017/moviet00';
 let currentStep = '';
 let currentOpData = {};
@@ -114,12 +116,22 @@ function runBot() {
   });
 
   bot.text((msg, reply, next) => {
-    if (msg.text && currentStep==='pass') {
+    if (currentStep==='pass' && msg.text) {
       currentStep = 'amount'
       currentOpData.pass = msg.text
+      reply.text('Por favor ingrese el monto a retirar:')
+    }
+    if (currentStep==='register_pass' && msg.text) {
+      currentOpData.pass = msg.text
+      doRegister(reply, currentOpData)
+    }
+    if (currentStep==='user' && !parseInt(msg.text)) {
+      currentOpData.user = msg.text
+      currentStep = 'register_pass'
+      reply.text('Por favor ingrese la clave:')
     }
     if (msg.text === 'registrar') {
-      inGetUser = true;
+      currentStep = 'user'
       reply.text('Por favor ingrese el usuario:')
     }
     if (msg.text === 'retirar') {
@@ -130,10 +142,6 @@ function runBot() {
       currentOpData.account = msg.text
       currentStep = 'pass'
       reply.text('Por favor ingrese la clave:')
-    }
-    if (currentStep==='amount') {
-      currentOpData.pass = msg.text
-      reply.text('Por favor ingrese el monto a retirar:')
     }
     if (currentStep === 'amount' && parseInt(msg.text)) {
       currentOpData.amount = msg.text
@@ -156,11 +164,27 @@ function getInclusiveRandomInteger(start, end) {
   return Math.floor(Math.random() * (Math.floor(end) - Math.ceil(start) + 1)) + Math.ceil(start);
 }
 
-function doWithdraw(reply, OpData) {
+function doRegister(reply, opData) {
+  opData.account = randtoken.generate(6, '0123456789')
   MongoClient.connect(mongoUrl, function(err, db) {
-    assert.equal(null, err);
-    console.log("Connected correctly to server");
-    var collection = db.collection('movies1');
+    assert.equal(null, err)
+    console.log("Connected correctly to server")
+    var collection = db.collection('movies1')
+    delete opData._id
+    collection.insertOne(opData, function(err, r) {
+      assert.equal(null, err)
+      currentStep = ''
+      console.log("Registro hecho.")
+      reply.markdown("Registro hecho, nuevo número de cuenta generado correspondiente al usuario _"+opData.user+"_: *"+opData.account+"*")
+    })
+  });
+}
+
+function doWithdraw(reply, opData) {
+  MongoClient.connect(mongoUrl, function(err, db) {
+    assert.equal(null, err)
+    console.log("Connected correctly to server")
+    var collection = db.collection('movies1')
     /*collection.updateOne({user:user, pass:pass}, {$inc: {amount: -amount}}, function(err, r) {
       assert.equal(null, err)
       assert.equal(1, r.matchedCount)

@@ -23,3 +23,4 @@
 * `git push heroku master`
 * `heroku config:set TGBOTTOKEN=<THE:TOKEN>`
 * `heroku config`
+* `npm i rand-token -S`
